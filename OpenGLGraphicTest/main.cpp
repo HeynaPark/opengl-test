@@ -5,6 +5,8 @@ using namespace cv;
 
 cv::Mat cvImage = cv::imread("frame.png");
 
+int img_width = 1920;
+int img_height = 1080;
 float line_thick = 7.0f;
 cv::Point startPoint(-800, -500);  // Ω√¿€¡° ¡¬«•
 cv::Point endPoint(800, 500);      // ≥°¡° ¡¬«•
@@ -48,7 +50,7 @@ float opencvToOpenGLX(int x, int width) {
 }
 
 float opencvToOpenGLY(int y, int height) {
-    return (2.0f * y / height)- 1.0f;
+    return 1.0f - (2.0f * y / height);
 }
 
 void display() {
@@ -56,21 +58,21 @@ void display() {
 
     glClear(GL_COLOR_BUFFER_BIT);
 
-    start.x = opencvToOpenGLX(startPoint.x, 1920);
-    end.x = opencvToOpenGLX(endPoint.x, 1920);
+    start.x = opencvToOpenGLX(startPoint.x, img_width);
+    end.x = opencvToOpenGLX(endPoint.x, img_width);
     
-    start.y = opencvToOpenGLY(startPoint.y, 1080);
-    end.y = opencvToOpenGLY(endPoint.y, 1080);
+    start.y = opencvToOpenGLY(startPoint.y, img_height);
+    end.y = opencvToOpenGLY(endPoint.y, img_height);
 
     std::cout << "point converse -> (start : " << start << " end : " << end << ")" << std::endl;
 
     drawLine(start, end);
 
     glEnd();
+    glFlush(); 
 
     graphicOnFrame();
 
-    glFlush(); 
     //glutPostRedisplay();
     //saveImage("golf_line.png", 1920, 1080);
 }
@@ -82,21 +84,24 @@ void onMouseClick(int event, int x, int y, int flags, void* userdata) {
     }
     else if (event == cv::EVENT_RBUTTONDOWN) {
         endPoint = cv::Point(x, y);
-        std::cout << "Right button clicked at (" << x << ", " << y << ")" << std::endl;
+        std::cout << "Right button clicked at (" << x << ", " << y << ")\n" << std::endl;
+        std::cout << " press > space bar <\n" << std::endl;
     }
+
 }
 
 
 void graphicOnFrame() {
 
-    unsigned char* pixelData = new unsigned char[3 * 1920 * 1080];
-    glReadPixels(0, 0, 1920, 1080, GL_RGB, GL_UNSIGNED_BYTE, pixelData);
+    unsigned char* pixelData = new unsigned char[3 * img_width * 1080];
+    glReadPixels(0, 0, img_width, img_height, GL_RGB, GL_UNSIGNED_BYTE, pixelData);
 
     // Create an OpenCV Mat from the OpenGL pixel data
-    cv::Mat openGLImage(1080, 1920, CV_8UC3);
+    cv::Mat openGLImage(img_height, img_width, CV_8UC3);
     for (int y = 0; y < openGLImage.rows; ++y) {
         for (int x = 0; x < openGLImage.cols; ++x) {
-            openGLImage.at<cv::Vec3b>(y, x) = cv::Vec3b(pixelData[3 * (y * openGLImage.cols + x) + 2],
+            int flippedY = img_height - 1 - y;
+            openGLImage.at<cv::Vec3b>(flippedY, x) = cv::Vec3b(pixelData[3 * (y * openGLImage.cols + x) + 2],
                 pixelData[3 * (y * openGLImage.cols + x) + 1],
                 pixelData[3 * (y * openGLImage.cols + x)]);
         }
@@ -115,8 +120,13 @@ void graphicOnFrame() {
 
 int main(int argc, char** argv) {
 
+    std::cout << " >>>>>>  Press mouse buttons. \n ( left button : start, right button : end )\n\n" << std::endl;
+
     // get input points
-    cv::resize(cvImage, cvImage, cv::Size(1920, 1080));
+    //Point2f prevStartPoint, prevEndPoint;
+    //prevStartPoint = startPoint;
+    //prevEndPoint = endPoint;
+    cv::resize(cvImage, cvImage, cv::Size(img_width, img_height));
     namedWindow("frame");
     setMouseCallback("frame", onMouseClick);
     cv::imshow("frame", cvImage);
@@ -125,8 +135,8 @@ int main(int argc, char** argv) {
     // draw opengl line
     glutInit(&argc, argv);
     glutInitDisplayMode(GLUT_SINGLE | GLUT_RGB);
-    glutInitWindowSize(1920, 1080);
-    glutInitWindowPosition(100, 100);
+    glutInitWindowSize(img_width, img_height);
+    glutInitWindowPosition(img_width, 100);
     glutCreateWindow("Image with OpenGL and FreeGLUT");
     glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
 
