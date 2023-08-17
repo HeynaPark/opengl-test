@@ -1,16 +1,26 @@
 #include <opencv2/opencv.hpp>
 #include <GL/freeglut.h>
+#include <random>
+#include <ctime>
+
 
 using namespace cv;
+using namespace std;
 
 cv::Mat cvImage = cv::imread("frame.png");
 
 int img_width = 1920;
 int img_height = 1080;
-float line_thick = 7.0f;
+int alpha_blending = 80;
+int line_thick = 6;
+int randomNumber = 50;
+vector<int> start_color = { 80, 20, 70 };
 
-cv::Point startPoint(800, 561);  // 시작점 좌표
+cv::Point startPoint(800, 561);     // 시작점 좌표
 cv::Point endPoint(1111, 800);      // 끝점 좌표
+
+GLfloat startColor[3] = { 0.0f, 0.3f, 1.0f };
+GLfloat endColor[3] = { 1.0f, 0.6f, 0.0f };
 
 void graphicOnFrame();
 
@@ -33,14 +43,16 @@ void saveImage(const char* filename, int width, int height) {
 
 void drawLine(Point2f& start, Point2f& end) {
     
-    glLineWidth(line_thick);
+    std::cout << " line thickness : " << line_thick << std::endl;
     glEnable(GL_LINE_SMOOTH);
+
+    glLineWidth(float(line_thick));
     glBegin(GL_LINES);
 
-    glColor3f(0.0f, 0.0f, 1.0f); // (파란색)
+    glColor3f(start_color[0]/100.f, start_color[1] / 100.f, start_color[2] / 100.f); // (파란색)
     glVertex2f(start.x, start.y);
 
-    glColor3f(1.0f, 0.0f, 0.0f); //  (빨간색)
+    glColor3f(endColor[0], endColor[1], endColor[2]); //  (빨간색)
     glVertex2f(end.x, end.y);
 
 }
@@ -56,7 +68,6 @@ float opencvToOpenGLY(int y, int height) {
 
 void display() {
     glClear(GL_COLOR_BUFFER_BIT); 
-
     
     Point2f start, end;
     start.x = opencvToOpenGLX(startPoint.x, img_width);
@@ -112,19 +123,41 @@ void graphicOnFrame() {
     delete[] pixelData;
 
     // Blend the OpenGL image and the OpenCV image
-    cv::addWeighted(openGLImage, 1, cvImage, 1, 0.0, openGLImage);
+    std::cout << " alpha_blending : " << alpha_blending << std::endl;
+    cv::addWeighted(openGLImage, alpha_blending /100.0, cvImage, 1, 0.0, openGLImage);
     cv::imshow("frame", openGLImage);
     waitKey(1);
 
     //cv::imwrite("golf_line.png", openGLImage);
 }
 
+void onAlphaBlendChange(int value, void* userdata) {
+    alpha_blending = value;
+    //graphicOnFrame();
+    glutPostRedisplay();
+}
+
+void onLineThickChange(int value, void* userdata) {
+    line_thick = value;
+    glutPostRedisplay();
+}
+
+void onColorChange(int value, void* userdata) {
+    int trackbar_id = *(static_cast<int*>(userdata));
+    start_color[trackbar_id] = value;
+    glutPostRedisplay();
+}
+
+
 
 int main(int argc, char** argv) {
 
-    std::cout << " >>>>>>  Press mouse buttons. \n ( left button : start, right button : end )\n\n" << std::endl;
+    //init program
     cv::resize(cvImage, cvImage, cv::Size(img_width, img_height));
     namedWindow("frame");
+
+    //interface
+    std::cout << " >>>>>>  Press mouse buttons. \n ( left button : start, right button : end )\n\n" << std::endl;
     std::string text = "Click the mouse (Left button : start point, right button : end point) ";
     int fontFace = cv::FONT_HERSHEY_DUPLEX;
     double fontScale = 1.5;
@@ -143,7 +176,21 @@ int main(int argc, char** argv) {
     cv::imshow("frame", cvImage);
     waitKey(1);
 
+    //control panel
+    cv::namedWindow("Control Panel");
+    cv::moveWindow("Control Panel", 2000, 100);
+    cv::resizeWindow("Control Panel", 800, 400);
+    cv::createTrackbar("alpha blending", "Control Panel", &alpha_blending, 100, onAlphaBlendChange);
+    cv::createTrackbar("line thickness", "Control Panel", &line_thick, 20, onLineThickChange);   
+    int trackbar_r_id = 0;
+    int trackbar_g_id = 1;
+    int trackbar_b_id = 2;
+    cv::createTrackbar("color r", "Control Panel", &start_color[0], 100, onColorChange, &trackbar_r_id);
+    cv::createTrackbar("color g", "Control Panel", &start_color[1], 100, onColorChange, &trackbar_g_id);
+    cv::createTrackbar("color b", "Control Panel", &start_color[2], 100, onColorChange, &trackbar_b_id);
+
     glutDisplayFunc(display);
+
     //glutMouseFunc(onMouseClick);
     
     glutMainLoop();
